@@ -26,12 +26,12 @@ public class AuthenticationResource {
     public Response requestToken(AuthenticationRequestDTO request) {
         keycloakTokenService = new KeycloakTokenService();
 
-        String response;
+        Response response;
         try {
             response = keycloakTokenService.requestToken(request.getUsername(), request.getPassword());
             JSONObject jsonResponse = new JSONObject(response);
-            log.debug("Token: " + jsonResponse.getString("access_token"));
-            return Response.ok().entity(response).build();
+            log.debug("Token: " + response.getEntity().toString());
+            return Response.ok().entity(response.getEntity()).build();
 
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -44,13 +44,13 @@ public class AuthenticationResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response validateToken(ValidationRequestDTO request) {
 
-        String response;
+        JSONObject jsonResponse = new JSONObject();
+        boolean isValid;
         try {
-            response = keycloakTokenService.validateToken(request.getToken());
-            JSONObject jsonResponse = new JSONObject(response);
-            log.debug("Token validity: " + jsonResponse.get("active"));
-            return Response.ok().entity(response).build();
-
+            isValid = keycloakTokenService.validateToken(request.getToken());
+            jsonResponse.put("active", isValid);
+            log.debug("Token status: " + jsonResponse.get("active"));
+            return Response.ok().entity(jsonResponse.toString()).type(MediaType.APPLICATION_JSON).build();
         } catch (Exception e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();

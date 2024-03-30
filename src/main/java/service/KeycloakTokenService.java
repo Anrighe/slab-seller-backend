@@ -1,8 +1,10 @@
 package service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.core.Response;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 
 
 import java.net.URI;
@@ -32,7 +34,7 @@ public class KeycloakTokenService {
     //@ConfigProperty(name = "keycloak.api.token-request-endpoint")
     String tokenRequestEndpoint = "/protocol/openid-connect/token";
 
-    public String requestToken(String username, String password) throws Exception {
+    public Response requestToken(String username, String password) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
 
         Map<Object, Object> data = new HashMap<>();
@@ -53,13 +55,13 @@ public class KeycloakTokenService {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-            return response.body();
+            return Response.status(response.statusCode()).entity(response.body()).build();
         } else {
             throw new RuntimeException("Failed to obtain token. Status code: " + response.statusCode());
         }
     }
 
-    public String validateToken(String token) throws Exception{
+    public boolean validateToken(String token) throws Exception{
         HttpClient client = HttpClient.newHttpClient();
 
         Map<Object, Object> data = new HashMap<>();
@@ -76,7 +78,10 @@ public class KeycloakTokenService {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 200) {
-            return response.body();
+            JSONObject jsonResponse = new JSONObject(response.body());
+
+            log.debug("Token validation response: " + jsonResponse.toString());
+            return jsonResponse.get("active") == Boolean.TRUE;
         } else {
             throw new RuntimeException("Failed to verify token. Status code: " + response.statusCode());
         }
