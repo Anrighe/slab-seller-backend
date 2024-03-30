@@ -24,10 +24,10 @@ public class KeycloakTokenService {
     String realm = "slab-seller";
 
     //@ConfigProperty(name = "keycloak.resource")
-    String clientId = "admin-rest-client";
+    String clientId = "admin-cli";
 
     //@ConfigProperty(name = "keycloak.credentials.secret")
-    String clientSecret = "NhsqkAGlZnZnUoB2QVxC6VTWCEPGqp9A";
+    String clientSecret = "EPlbPURHTXvagVRkQIogfR3iwaAFfXAW";
 
     //@ConfigProperty(name = "keycloak.api.token-request-endpoint")
     String tokenRequestEndpoint = "/protocol/openid-connect/token";
@@ -37,9 +37,9 @@ public class KeycloakTokenService {
 
         Map<Object, Object> data = new HashMap<>();
         data.put("grant_type", "password");
-        data.put("client_id", "admin-rest-client");
-        data.put("client_secret", "NhsqkAGlZnZnUoB2QVxC6VTWCEPGqp9A");
-        data.put("username", "developer");
+        data.put("client_id", "admin-cli");
+        data.put("client_secret", "EPlbPURHTXvagVRkQIogfR3iwaAFfXAW");
+        data.put("username", "test");
         data.put("password", "123");
 
         log.debug("URL: " + authServerUrl + realm + tokenRequestEndpoint);
@@ -57,6 +57,30 @@ public class KeycloakTokenService {
         } else {
             throw new RuntimeException("Failed to obtain token. Status code: " + response.statusCode());
         }
+    }
+
+    public String validateToken(String token) throws Exception{
+        HttpClient client = HttpClient.newHttpClient();
+
+        Map<Object, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("client_id", clientId);
+        data.put("client_secret", clientSecret);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(authServerUrl + realm + "/protocol/openid-connect/token/introspect"))
+                .POST(buildFormDataFromMap(data))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build();
+
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 200) {
+            return response.body();
+        } else {
+            throw new RuntimeException("Failed to verify token. Status code: " + response.statusCode());
+        }
+
     }
 
     private static HttpRequest.BodyPublisher buildFormDataFromMap(Map<Object, Object> data) {
