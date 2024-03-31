@@ -24,15 +24,12 @@ public class AuthenticationResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response requestToken(AuthenticationRequestDTO request) {
-        keycloakTokenService = new KeycloakTokenService();
 
         Response response;
         try {
             response = keycloakTokenService.requestToken(request.getUsername(), request.getPassword());
-            JSONObject jsonResponse = new JSONObject(response);
             log.debug("Token: " + response.getEntity().toString());
             return Response.ok().entity(response.getEntity()).build();
-
         } catch (Exception e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
