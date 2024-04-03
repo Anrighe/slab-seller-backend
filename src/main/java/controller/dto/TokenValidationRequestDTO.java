@@ -3,6 +3,6 @@ package controller.dto;
 import lombok.Data;
 
 @Data
-public class ValidationRequestDTO {
+public class TokenValidationRequestDTO {
     private String token;
 }
