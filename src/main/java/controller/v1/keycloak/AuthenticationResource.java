@@ -1,6 +1,7 @@
 package controller.v1.keycloak;
 
 import controller.dto.*;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -10,17 +11,17 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
-import service.KeycloakTokenService;
+import service.KeycloakService;
 
 /**
  * RESTful web service controller that handles authentication-related requests.
  * It uses the KeycloakTokenService to interact with the Keycloak authentication server.
  */
-@Path("/authentication")
+@Path("/api/authentication")
 @Slf4j
 public class AuthenticationResource {
     @Inject
-    KeycloakTokenService keycloakTokenService;
+    KeycloakService keycloakService;
 
     /**
      * Handles POST requests to /token/request.
@@ -39,7 +40,7 @@ public class AuthenticationResource {
         JSONObject jsonResponse;
         TokenRequestResponseDTO tokenRequestResponse = new TokenRequestResponseDTO();
         try {
-            response = keycloakTokenService.requestToken(request.getUsername(), request.getPassword());
+            response = keycloakService.requestToken(request.getUsername(), request.getPassword());
             jsonResponse = new JSONObject(response.getEntity().toString());
 
             log.debug("Token: " + response.getEntity().toString());
@@ -70,7 +71,7 @@ public class AuthenticationResource {
         TokenRefreshResponseDTO tokenRefreshResponse = new TokenRefreshResponseDTO();
 
         try {
-            response = keycloakTokenService.refreshToken(tokenRefreshRequestDTO.getRefreshToken());
+            response = keycloakService.refreshToken(tokenRefreshRequestDTO.getRefreshToken());
 
             JSONObject jsonResponse = new JSONObject(response.getEntity().toString());
             tokenRefreshResponse.setNewToken(jsonResponse.getString("access_token"));
@@ -98,7 +99,7 @@ public class AuthenticationResource {
         TokenValidationResponseDTO tokenValidationResponse = new TokenValidationResponseDTO();
 
         try {
-            isValid = keycloakTokenService.validateToken(request.getToken());
+            isValid = keycloakService.validateToken(request.getToken());
             tokenValidationResponse.setTokenValid(isValid);
             log.debug("Token valid: " + tokenValidationResponse.isTokenValid());
             return Response.ok().entity(tokenValidationResponse).type(MediaType.APPLICATION_JSON).build();
