@@ -2,6 +2,8 @@ package service;
 
 import controller.dto.UserCreationRequestDTO;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import lombok.Data;
@@ -125,72 +127,42 @@ public class KeycloakService {
     }
 
     /**
-     * Create a new user in Keycloak.
+     * Create a user in Keycloak.
      *
-     * @param userCreationRequestDTO the data transfer object containing the user's information
-     * @return a Response object containing the result of the user creation operation
-     * @throws RuntimeException if an error occurs during the user creation operation
+     * @param userCreationRequestDTO the user creation request
+     * @return a Response containing the result of the user creation
      */
     public Response createUser(UserCreationRequestDTO userCreationRequestDTO) {
-        HttpClient client = HttpClient.newHttpClient();
 
-        Map<Object, Object> data = new HashMap<>();
-        Map<String, Object> credentials = new HashMap<>();
-        List<Map<String, Object>> credentialsList = new ArrayList<>();
+        var requestBody = new JSONObject()
+                .put("username", userCreationRequestDTO.getUsername())
+                .put("enabled", userCreationRequestDTO.isEnabled())
+                .put("email", userCreationRequestDTO.getEmail())
+                .put("firstName", userCreationRequestDTO.getFirstName())
+                .put("lastName", userCreationRequestDTO.getLastName())
+                .put("credentials", new ArrayList<>() {{
+                    add(new JSONObject()
+                            .put("type", "password")
+                            .put("value", userCreationRequestDTO.getPassword())
+                            .put("temporary", false));
+                }}).toString();
 
-        data.put("username", userCreationRequestDTO.getUsername());
-        data.put("enabled", userCreationRequestDTO.isEnabled());
-        data.put("email", userCreationRequestDTO.getEmail());
-        data.put("firstName", userCreationRequestDTO.getFirstName());
-        data.put("lastName", userCreationRequestDTO.getLastName());
-
-        //credentials.put("type", "password");
-        //credentials.put("value", userCreationRequestDTO.getPassword());
-        //credentials.put("temporary", false);
-        //credentialsList.add(credentials);
-
-        data.put("credentials", new ArrayList<>() {{
-            add(new HashMap<>() {{
-                put("type", "password");
-                put("value", userCreationRequestDTO.getPassword());
-                put("temporary", false);
-            }});
-        }});
-
-        log.debug(userCreationRequestDTO.getToken());
-
-        String requestBody = "{\n" +
-                "    \"username\": \"new_user2\",\n" +
-                "    \"enabled\": true,\n" +
-                "    \"email\": \"new_user@test.it\",\n" +
-                "    \"firstName\": \"New\",\n" +
-                "    \"lastName\": \"User\",\n" +
-                "    \"credentials\": [\n" +
-                "        {\n" +
-                "            \"type\": \"password\",\n" +
-                "            \"value\": \"123\",\n" +
-                "            \"temporary\": false\n" +
-                "        }\n" +
-                "    ]\n" +
-                "}";
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8443/admin/realms/slab-seller/users"))
-
-                .header("Content-type", "application/json")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + userCreationRequestDTO.getToken())
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-                //.POST(buildFormDataFromMap(data))
-        log.debug(request.headers().toString());
+        Client client = ClientBuilder.newClient();
 
         try {
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 201) {
-                return Response.status(response.statusCode()).entity(response.body()).build();
+            Response response = client.target(authServerUrl + userCreationEndpoint)
+                    .request()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + userCreationRequestDTO.getToken())
+                    .accept("application/json")
+                    .post(jakarta.ws.rs.client.Entity.json(requestBody));
+
+
+            if (response.getStatus() == 201) {
+                return Response.status(response.getStatus()).entity(response.getEntity()).build();
             } else {
-                log.error(response.body());
-                throw new RuntimeException("Failed to create user. Status code: " + response.statusCode());
+                log.error(response.getStatus() + " " + response.readEntity(String.class));
+                throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to create user. " + e.getMessage());
