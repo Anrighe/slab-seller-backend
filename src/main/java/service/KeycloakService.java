@@ -37,6 +37,7 @@ public class KeycloakService {
     String tokenRestClientId = ConfigProvider.getConfig().getValue("keycloak.token-rest-client.resource", String.class);
 
     String tokenRequestEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
+    String tokenIntrospectionEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
     String userCreationEndpoint = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
 
     /**
@@ -111,7 +112,7 @@ public class KeycloakService {
         data.put("client_secret", genericRestClientSecret);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(authServerUrl + realm + "/protocol/openid-connect/token/introspect"))
+                .uri(URI.create(authServerUrl + realm + tokenIntrospectionEndpoint))
                 .POST(buildFormDataFromMap(data))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .build();
