@@ -1,6 +1,7 @@
 package service;
 
 import controller.dto.UserCreationRequestDTO;
+import controller.dto.UserInfoUpdateRequestDTO;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -21,7 +22,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Service class for handling Keycloak token operations.
+ * Service class for handling Keycloak token operations
  */
 @Data
 @Slf4j
@@ -39,9 +40,10 @@ public class KeycloakService {
     String tokenRequestEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
     String tokenIntrospectionEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
     String userCreationEndpoint = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
+    String userInfoUpdateEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-user-info-update-endpoint", String.class);
 
     /**
-     * Request a token from Keycloak.
+     * Request a token from Keycloak
      *
      * @param username the username
      * @param password the password
@@ -69,7 +71,7 @@ public class KeycloakService {
         if (response.statusCode() == 200) {
             return Response.status(response.statusCode()).entity(response.body()).build();
         } else {
-            throw new RuntimeException("Failed to obtain token. Status code: " + response.statusCode());
+            throw new RuntimeException("Failed to obtain token: Status code: " + response.statusCode());
         }
     }
 
@@ -92,12 +94,12 @@ public class KeycloakService {
         if (response.statusCode() == 200) {
             return Response.status(response.statusCode()).entity(response.body()).build();
         } else {
-            throw new RuntimeException("Failed to obtain token. Status code: " + response.statusCode());
+            throw new RuntimeException("Failed to obtain token: Status code: " + response.statusCode());
         }
     }
 
     /**
-     * Validate a token with Keycloak.
+     * Validate a token with Keycloak
      *
      * @param token the token to validate
      * @return true if the token is valid, false otherwise
@@ -123,19 +125,19 @@ public class KeycloakService {
 
             return jsonResponse.get("active") == Boolean.TRUE;
         } else {
-            throw new RuntimeException("Failed to verify token. Status code: " + response.statusCode());
+            throw new RuntimeException("Failed to verify token: Status code: " + response.statusCode());
         }
     }
 
     /**
-     * Create a user in Keycloak.
+     * Create a user in Keycloak
      *
      * @param userCreationRequestDTO the user creation request
      * @return a Response containing the result of the user creation
      */
-    public Response createUser(UserCreationRequestDTO userCreationRequestDTO) {
+    public Response createUser(UserCreationRequestDTO userCreationRequestDTO) throws Exception{
 
-        var requestBody = new JSONObject()
+        JSONObject requestBody = new JSONObject()
                 .put("username", userCreationRequestDTO.getUsername())
                 .put("enabled", userCreationRequestDTO.isEnabled())
                 .put("email", userCreationRequestDTO.getEmail())
@@ -146,7 +148,7 @@ public class KeycloakService {
                             .put("type", "password")
                             .put("value", userCreationRequestDTO.getPassword())
                             .put("temporary", false));
-                }}).toString();
+                }});
 
         Client client = ClientBuilder.newClient();
 
@@ -166,12 +168,57 @@ public class KeycloakService {
                 throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create user. " + e.getMessage());
+            throw new RuntimeException("Failed to create user: " + e.getMessage());
         }
     }
 
     /**
-     * Build form data from a map.
+     * Update user information in Keycloak
+     *
+     * @param userInfoUpdateRequestDTO the user information update request
+     * @return a Response containing the result of the user information update
+     */
+    public Response updateUserInfo(UserInfoUpdateRequestDTO userInfoUpdateRequestDTO) throws Exception {
+
+        JSONObject requestBody = new JSONObject();
+
+        assert userInfoUpdateRequestDTO.getUserId() != null;
+        assert userInfoUpdateRequestDTO.getToken() != null;
+
+        if (userInfoUpdateRequestDTO.getEmail() != null)
+            requestBody.put("email", userInfoUpdateRequestDTO.getEmail());
+
+        if (userInfoUpdateRequestDTO.getFirstName() != null)
+            requestBody.put("firstName", userInfoUpdateRequestDTO.getFirstName());
+
+        if (userInfoUpdateRequestDTO.getLastName() != null)
+            requestBody.put("lastName", userInfoUpdateRequestDTO.getLastName());
+
+        Client client = ClientBuilder.newClient();
+
+        try {
+            Response response = client.target(authServerUrl + userInfoUpdateEndpoint + "/" + userInfoUpdateRequestDTO.getUserId())
+                    .request()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + userInfoUpdateRequestDTO.getToken())
+                    .accept("application/json")
+                    .put(jakarta.ws.rs.client.Entity.json(requestBody));
+
+            if (response.getStatus() == Response.Status.NO_CONTENT.getStatusCode()) {
+                return Response.status(response.getStatus()).entity(response.getEntity()).build();
+            } else {
+                log.error(response.getStatus() + " " + response.readEntity(String.class));
+                throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create user: " + e.getMessage());
+        }
+
+
+    }
+
+    /**
+     * Build form data from a map
      *
      * @param data the map containing the form data
      * @return a BodyPublisher containing the form data
