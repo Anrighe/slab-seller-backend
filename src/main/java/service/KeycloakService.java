@@ -2,6 +2,7 @@ package service;
 
 import controller.dto.UserCreationRequestDTO;
 import controller.dto.UserInfoUpdateRequestDTO;
+import controller.dto.UserPasswordUpdateRequestDTO;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -17,7 +18,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -40,7 +40,11 @@ public class KeycloakService {
     String tokenRequestEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
     String tokenIntrospectionEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
     String userCreationEndpoint = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
-    String userInfoUpdateEndpoint = ConfigProvider.getConfig().getValue("keycloak.token-user-info-update-endpoint", String.class);
+    String userInfoUpdateEndpoint = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
+    String userPasswordUpdateEndpointFirst = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
+    String userPasswordUpdateEndpointSecond = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
+
+    //TODO: update client use and response return as in updateUserPassword()
 
     /**
      * Request a token from Keycloak
@@ -213,8 +217,36 @@ public class KeycloakService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to create user: " + e.getMessage());
         }
+    }
 
+    /**
+     * Update user password in Keycloak. Only an admin token owner may perform this operation
+     *
+     * @param userPasswordUpdateRequestDTO the user password update request
+     * @return a Response containing the result of the user password update
+     */
+    public Response updateUserPassword(UserPasswordUpdateRequestDTO userPasswordUpdateRequestDTO) throws Exception {
+        JSONObject requestBody = new JSONObject()
+                .put("type", "password")
+                .put("value", userPasswordUpdateRequestDTO.getNewPassword())
+                .put("temporary", false);
 
+        Client client = ClientBuilder.newClient();
+
+        try {
+            Response response = client.target(authServerUrl + userPasswordUpdateEndpointFirst + "/"
+                            + userPasswordUpdateRequestDTO.getUserId() + userPasswordUpdateEndpointSecond)
+                    .request()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + userPasswordUpdateRequestDTO.getToken())
+                    .accept("application/json")
+                    .put(jakarta.ws.rs.client.Entity.json(requestBody));
+
+            return Response.status(response.getStatus()).entity(response.getEntity()).build();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create user: " + e.getMessage());
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ package controller.v1.keycloak;
 
 import controller.dto.UserCreationRequestDTO;
 import controller.dto.UserInfoUpdateRequestDTO;
+import controller.dto.UserPasswordUpdateRequestDTO;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -75,11 +76,44 @@ public class UserResource {
                     description = "Internal Server Error"),
             @APIResponse(
                     responseCode = "204",
-                    description = "User info updated successfully")
+                    description = "User info successfully updated")
     })
     public Response updateUserInfo(UserInfoUpdateRequestDTO request) {
         try {
             return keycloakService.updateUserInfo(request);
+
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PUT
+    @Path("/update/password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @APIResponses(value = {
+            @APIResponse(
+                    responseCode = "400",
+                    description = "Bad Request"),
+            @APIResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"),
+            @APIResponse(
+                    responseCode = "403",
+                    description = "Forbidden"),
+            @APIResponse(
+                    responseCode = "404",
+                    description = "Not found"),
+            @APIResponse(
+                    responseCode = "500",
+                    description = "Internal Server Error"),
+            @APIResponse(
+                    responseCode = "204",
+                    description = "User password successfully updated")
+    })
+    public Response updateUserPassword(UserPasswordUpdateRequestDTO request) {
+        try {
+            return keycloakService.updateUserPassword(request);
 
         } catch (Exception e) {
             log.error(e.getMessage());
