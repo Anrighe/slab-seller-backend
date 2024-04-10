@@ -113,7 +113,7 @@ public class UserResource {
     })
     public Response updateUserPassword(UserPasswordUpdateRequestDTO request) {
         try {
-            return keycloakService.updateUserPassword(request);
+            return keycloakService.updateUserPasswordRequest(request);
 
         } catch (Exception e) {
             log.error(e.getMessage());

@@ -1,7 +1,6 @@
 package controller.v1.keycloak;
 
 import controller.dto.*;
-import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -34,25 +33,25 @@ public class AuthenticationResource {
     @Path("/token/request")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response requestToken(AuthenticationRequestDTO request) {
+    public Response requestToken(AuthenticationRequestDTO authenticationRequestDTO) {
 
-        Response response;
-        JSONObject jsonResponse;
-        TokenRequestResponseDTO tokenRequestResponse = new TokenRequestResponseDTO();
+        AuthenticationResponseDTO response;
+
         try {
-            response = keycloakService.requestToken(request.getUsername(), request.getPassword());
-            jsonResponse = new JSONObject(response.getEntity().toString());
+            Response serviceResponse = keycloakService.requestToken(authenticationRequestDTO);
 
-            log.debug("Token: " + response.getEntity().toString());
+            if (serviceResponse.getStatus() != 200)
+                return serviceResponse;
 
-            tokenRequestResponse.setNewToken(jsonResponse.getString("access_token"));
-            tokenRequestResponse.setRefreshToken(jsonResponse.getString("refresh_token"));
+            response = new AuthenticationResponseDTO(serviceResponse);
 
-            return Response.ok().entity(tokenRequestResponse).build();
+            return Response.ok().entity(response).type(MediaType.APPLICATION_JSON).build();
+
         } catch (Exception e) {
             log.error(e.getMessage());
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
+
     }
 
     /**

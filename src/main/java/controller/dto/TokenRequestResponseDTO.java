@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class TokenRequestResponseDTO {
-    String newToken;
-    String refreshToken;
+    private String newToken;
+    private String refreshToken;
 }
