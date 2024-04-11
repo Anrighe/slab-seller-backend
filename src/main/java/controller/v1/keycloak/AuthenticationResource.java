@@ -35,23 +35,18 @@ public class AuthenticationResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response requestToken(AuthenticationRequestDTO authenticationRequestDTO) {
 
-        AuthenticationResponseDTO response;
-
         try {
             Response serviceResponse = keycloakService.requestToken(authenticationRequestDTO);
 
             if (serviceResponse.getStatus() != 200)
                 return serviceResponse;
 
-            response = new AuthenticationResponseDTO(serviceResponse);
-
-            return Response.ok().entity(response).type(MediaType.APPLICATION_JSON).build();
+            return Response.ok().entity(new AuthenticationResponseDTO(serviceResponse)).type(MediaType.APPLICATION_JSON).build();
 
         } catch (Exception e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
-
     }
 
     /**

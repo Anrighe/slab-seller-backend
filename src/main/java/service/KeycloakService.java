@@ -14,6 +14,7 @@ import jakarta.ws.rs.core.Response;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -33,8 +34,8 @@ import java.util.HashMap;
 public class KeycloakService {
 
     // Configuration parameters
-    private String HIGH_LEVEL_USER_USERNAME = ConfigProvider.getConfig().getValue("keycloak.high-level-user-username", String.class);
-    private String HIGH_LEVEL_USER_PASSWORD = ConfigProvider.getConfig().getValue("keycloak.high-level-user-password", String.class);
+    private String HIGH_LEVEL_PERMISSION_USERNAME = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-username", String.class);
+    private String HIGH_LEVEL_PERMISSION_PASSWORD = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-password", String.class);
 
     private String AUTH_SERVER_URL = ConfigProvider.getConfig().getValue("keycloak.auth-server-url", String.class);
     private String REALM = ConfigProvider.getConfig().getValue("keycloak.realm", String.class);
@@ -50,6 +51,7 @@ public class KeycloakService {
     private String USER_INFO_UPDATE_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
     private String USER_PASSWORD_UPDATE_ENDPOINT_FIRST = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
     private String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
+    private String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
 
     //TODO: update client use and response return as in updateUserPassword()
 
@@ -58,7 +60,7 @@ public class KeycloakService {
      *
      * @param authenticationRequestDTO the authentication request
      * @return a Response containing the token
-     * @throws Exception if an error occurs during the request
+     * @throws RuntimeException if an error occurs during the request
      */
     public Response requestToken(AuthenticationRequestDTO authenticationRequestDTO) throws RuntimeException {
         Form requestBody = new Form()
@@ -109,7 +111,7 @@ public class KeycloakService {
      *
      * @param token the token to validate
      * @return true if the token is valid, false otherwise
-     * @throws Exception if an error occurs during the validation
+     * @throws RuntimeException if an error occurs during the validation
      */
     public boolean validateToken(String token) throws Exception{
         HttpClient client = HttpClient.newHttpClient();
@@ -140,6 +142,7 @@ public class KeycloakService {
      *
      * @param userCreationRequestDTO the user creation request
      * @return a Response containing the result of the user creation
+     * @throws RuntimeException if an error occurs during the creation
      */
     public Response createUser(UserCreationRequestDTO userCreationRequestDTO) throws RuntimeException {
 
@@ -183,6 +186,7 @@ public class KeycloakService {
      *
      * @param userInfoUpdateRequestDTO the user information update request
      * @return a Response containing the result of the user information update
+     * @throws RuntimeException if an error occurs during the update
      */
     public Response updateUserInfo(UserInfoUpdateRequestDTO userInfoUpdateRequestDTO) throws RuntimeException {
 
@@ -214,10 +218,10 @@ public class KeycloakService {
                 return Response.status(response.getStatus()).entity(response.getEntity()).build();
             } else {
                 log.error(response.getStatus() + " " + response.readEntity(String.class));
-                throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
+                throw new RuntimeException("Failed to update the user. Status code: " + response.getStatus());
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create user: " + e.getMessage());
+            throw new RuntimeException("Failed to update the user: " + e.getMessage());
         }
     }
 
@@ -226,6 +230,7 @@ public class KeycloakService {
      *
      * @param userPasswordUpdateRequestDTO the user password update request
      * @return a Response containing the result of the user password update
+     * @throws RuntimeException if an error occurs during the update
      */
     public Response updateUserPassword(UserPasswordUpdateRequestDTO userPasswordUpdateRequestDTO) throws RuntimeException {
         JSONObject requestBody = new JSONObject()
@@ -236,17 +241,16 @@ public class KeycloakService {
         Client client = ClientBuilder.newClient();
 
         try {
-            //TODO: remove user id from the userPasswordUpdateRequestDTO and add a function that gets it automatically
             return client.target(AUTH_SERVER_URL + USER_PASSWORD_UPDATE_ENDPOINT_FIRST + "/"
-                            + userPasswordUpdateRequestDTO.getUserId() + USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
+                            + getUserId(userPasswordUpdateRequestDTO.getUsername()) + USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelToken())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
                     .accept("application/json")
                     .put(Entity.json(requestBody));
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create user: " + e.getMessage());
+            throw new RuntimeException("Failed to update the user password: " + e.getMessage());
         }
     }
 
@@ -257,6 +261,8 @@ public class KeycloakService {
      * the request will be rejected. If the user is valid, the password update request will be made.
      *
      * @param userPasswordUpdateRequestDTO the user password update request
+     * @return a Response containing the result of the user password update
+     * @throws RuntimeException if an error occurs during the update
      */
     public Response updateUserPasswordRequest(UserPasswordUpdateRequestDTO userPasswordUpdateRequestDTO) throws RuntimeException {
         try {
@@ -277,17 +283,18 @@ public class KeycloakService {
     }
 
     /**
-     * Returns a high level token for admin operations.
+     * Returns a high level permission token for admin operations.
      * Under no circumstances, this method mustn't be called from rest endpoints.
      *
-     * @return the high level token
+     * @return a token with high level permissions
+     * @throws RuntimeException if an error occurs during the token request
      */
-    private String getHighLevelToken() {
+    private String getHighLevelPermissionToken() {
         Form requestBody = new Form()
                 .param("grant_type", "password")
                 .param("client_id", TOKEN_REST_CLIENT_ID)
-                .param("username", HIGH_LEVEL_USER_USERNAME)
-                .param("password", HIGH_LEVEL_USER_PASSWORD);
+                .param("username", HIGH_LEVEL_PERMISSION_USERNAME)
+                .param("password", HIGH_LEVEL_PERMISSION_PASSWORD);
 
         Client client = ClientBuilder.newClient();
 
@@ -309,7 +316,55 @@ public class KeycloakService {
         }
     }
 
-    //TODO: add getUserId function + endpoint(?)
+    /**
+     * Get user information from Keycloak. It might return more than one user since it checks if the parameter
+     * passed as argument is contained in all the usernames.
+     * Beware this method uses a high level permission token. It mustn't be called from rest endpoints.
+     *
+     * @param username the username of the user
+     * @return a Response containing the user information. The body of the response is a JSON array
+     * @throws RuntimeException if an error occurs during the request
+     */
+    private Response getUserInfo(String username) throws RuntimeException {
+        Client client = ClientBuilder.newClient();
+
+        try {
+            return client.target(AUTH_SERVER_URL + USER_ID_ENDPOINT + "?username=" + username)
+                    .request()
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
+                    .accept("application/json")
+                    .get();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to obtain user id: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get the user id from Keycloak.
+     * This method uses a high level permission token. It mustn't be called from rest endpoints.
+     *
+     * @param username the username of the user
+     * @return the user id. If no user is found, it returns null
+     * @throws RuntimeException if an error occurs during the request
+     */
+    private String getUserId(String username) throws RuntimeException {
+        try {
+            Response response = getUserInfo(username);
+            JSONArray jsonArrayResponse = new JSONArray(response.readEntity(String.class));
+
+            for (int i = 0; i < jsonArrayResponse.length(); ++i) {
+                JSONObject jsonObject = jsonArrayResponse.getJSONObject(i);
+                if (jsonObject.getString("username").equals(username)) {
+                    return jsonObject.getString("id");
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to obtain user id: " + e.getMessage());
+        }
+
+        return null;
+    }
 
     /**
      * Build form data from a map
