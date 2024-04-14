@@ -17,13 +17,8 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
+
 
 /**
  * Service class for handling Keycloak token operations
@@ -46,14 +41,13 @@ public class KeycloakService {
     private String TOKEN_REST_CLIENT_ID = ConfigProvider.getConfig().getValue("keycloak.token-rest-client.resource", String.class);
 
     private String TOKEN_REQUEST_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
-    private String TOKEN_INTROSPECTION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
+    private String TOKEN_REFRESH_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-refresh-endpoint", String.class);
+    private String TOKEN_VALIDATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
     private String USER_CREATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
     private String USER_INFO_UPDATE_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
     private String USER_PASSWORD_UPDATE_ENDPOINT_FIRST = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
     private String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
     private String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
-
-    //TODO: update client use and response return as in updateUserPassword()
 
     /**
      * Request a token from Keycloak
@@ -83,26 +77,30 @@ public class KeycloakService {
         }
     }
 
-    public Response refreshToken(String refreshToken) throws Exception {
-        HttpClient client = HttpClient.newHttpClient();
+    /*
+     * Refresh a token with Keycloak. In order to refresh a token, the client must have a refresh token.
+     *
+     * @param refreshToken the refresh token
+     * @return a Response containing the new token
+     * @throws RuntimeException if an error occurs during the refresh
+     */
+    public Response refreshToken(String refreshToken) throws RuntimeException {
 
-        Map<Object, Object> data = new HashMap<>();
-        data.put("client_id", TOKEN_REST_CLIENT_ID);
-        data.put("grant_type", "refresh_token");
-        data.put("refresh_token", refreshToken);
+        Client client = ClientBuilder.newClient();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(AUTH_SERVER_URL + REALM + TOKEN_REQUEST_ENDPOINT))
-                .POST(buildFormDataFromMap(data))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .build();
+        Form requestBody = new Form()
+                .param("grant_type", "refresh_token")
+                .param("client_id", TOKEN_REST_CLIENT_ID)
+                .param("refresh_token", refreshToken);
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 200) {
-            return Response.status(response.statusCode()).entity(response.body()).build();
-        } else {
-            throw new RuntimeException("Failed to obtain token: Status code: " + response.statusCode());
+        try {
+            return client.target(AUTH_SERVER_URL + REALM + TOKEN_REQUEST_ENDPOINT)
+                    .request()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .accept("application/json")
+                    .post(Entity.form(requestBody));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to refresh token: " + e.getMessage());
         }
     }
 
@@ -110,30 +108,27 @@ public class KeycloakService {
      * Validate a token with Keycloak
      *
      * @param token the token to validate
-     * @return true if the token is valid, false otherwise
+     * @return a Response containing the result of the validation
      * @throws RuntimeException if an error occurs during the validation
      */
-    public boolean validateToken(String token) throws Exception{
-        HttpClient client = HttpClient.newHttpClient();
+    public Response validateToken(String token) throws RuntimeException{
 
-        Map<Object, Object> data = new HashMap<>();
-        data.put("token", token);
-        data.put("client_id", GENERIC_REST_CLIENT_ID);
-        data.put("client_secret", GENERIC_REST_CLIENT_SECRET);
+        Client client = ClientBuilder.newClient();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(AUTH_SERVER_URL + REALM + TOKEN_INTROSPECTION_ENDPOINT))
-                .POST(buildFormDataFromMap(data))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .build();
+        Form requestBody = new Form()
+                .param("token", token)
+                .param("client_id", GENERIC_REST_CLIENT_ID)
+                .param("client_secret", GENERIC_REST_CLIENT_SECRET);
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() == 200) {
-            JSONObject jsonResponse = new JSONObject(response.body());
-
-            return jsonResponse.get("active") == Boolean.TRUE;
-        } else {
-            throw new RuntimeException("Failed to verify token: Status code: " + response.statusCode());
+        try {
+            return client.target(AUTH_SERVER_URL + REALM + TOKEN_VALIDATION_ENDPOINT)
+                    .request()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .accept("application/json")
+                    .post(Entity.form(requestBody));
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to validate token: " + e.getMessage());
         }
     }
 
@@ -162,19 +157,20 @@ public class KeycloakService {
         Client client = ClientBuilder.newClient();
 
         try {
-            Response response = client.target(AUTH_SERVER_URL + USER_CREATION_ENDPOINT)
+            try (Response response = client.target(AUTH_SERVER_URL + USER_CREATION_ENDPOINT)
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + userCreationRequestDTO.getToken())
                     .accept("application/json")
-                    .post(Entity.json(requestBody));
+                    .post(Entity.json(requestBody))) {
 
 
-            if (response.getStatus() == 201) {
-                return Response.status(response.getStatus()).entity(response.getEntity()).build();
-            } else {
-                log.error(response.getStatus() + " " + response.readEntity(String.class));
-                throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
+                if (response.getStatus() == 201) {
+                    return Response.status(response.getStatus()).entity(response.getEntity()).build();
+                } else {
+                    log.error(response.getStatus() + " " + response.readEntity(String.class));
+                    throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to create user: " + e.getMessage());
@@ -207,18 +203,19 @@ public class KeycloakService {
         Client client = ClientBuilder.newClient();
 
         try {
-            Response response = client.target(AUTH_SERVER_URL + USER_INFO_UPDATE_ENDPOINT + "/" + userInfoUpdateRequestDTO.getUserId())
+            try (Response response = client.target(AUTH_SERVER_URL + USER_INFO_UPDATE_ENDPOINT + "/" + userInfoUpdateRequestDTO.getUserId())
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + userInfoUpdateRequestDTO.getToken())
                     .accept("application/json")
-                    .put(Entity.json(requestBody));
+                    .put(Entity.json(requestBody))) {
 
-            if (response.getStatus() == Response.Status.NO_CONTENT.getStatusCode()) {
-                return Response.status(response.getStatus()).entity(response.getEntity()).build();
-            } else {
-                log.error(response.getStatus() + " " + response.readEntity(String.class));
-                throw new RuntimeException("Failed to update the user. Status code: " + response.getStatus());
+                if (response.getStatus() == Response.Status.NO_CONTENT.getStatusCode()) {
+                    return Response.status(response.getStatus()).entity(response.getEntity()).build();
+                } else {
+                    log.error(response.getStatus() + " " + response.readEntity(String.class));
+                    throw new RuntimeException("Failed to update the user. Status code: " + response.getStatus());
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to update the user: " + e.getMessage());
@@ -299,17 +296,18 @@ public class KeycloakService {
         Client client = ClientBuilder.newClient();
 
         try {
-            Response response = client.target(AUTH_SERVER_URL + REALM + TOKEN_REQUEST_ENDPOINT)
+            try (Response response = client.target(AUTH_SERVER_URL + REALM + TOKEN_REQUEST_ENDPOINT)
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded")
                     .accept("application/json")
-                    .post(Entity.form(requestBody));
+                    .post(Entity.form(requestBody))) {
 
-            if (response.getStatus() == 200) {
-                JSONObject jsonResponse = new JSONObject(response.readEntity(String.class));
-                return jsonResponse.get("access_token").toString();
-            } else {
-                throw new RuntimeException("Failed to obtain token: Status code: " + response.getStatus());
+                if (response.getStatus() == 200) {
+                    JSONObject jsonResponse = new JSONObject(response.readEntity(String.class));
+                    return jsonResponse.get("access_token").toString();
+                } else {
+                    throw new RuntimeException("Failed to obtain token: Status code: " + response.getStatus());
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to obtain token: " + e.getMessage());
@@ -364,24 +362,5 @@ public class KeycloakService {
         }
 
         return null;
-    }
-
-    /**
-     * Build form data from a map
-     *
-     * @param data the map containing the form data
-     * @return a BodyPublisher containing the form data
-     */
-    private static HttpRequest.BodyPublisher buildFormDataFromMap(Map<Object, Object> data) {
-        var builder = new StringBuilder();
-        for (Map.Entry<Object, Object> entry : data.entrySet()) {
-            if (!builder.isEmpty()) {
-                builder.append("&");
-            }
-            builder.append(entry.getKey());
-            builder.append("=");
-            builder.append(entry.getValue());
-        }
-        return HttpRequest.BodyPublishers.ofString(builder.toString());
     }
 }
