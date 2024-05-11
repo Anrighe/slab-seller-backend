@@ -279,6 +279,10 @@ public class KeycloakService {
         }
     }
 
+    //TODO: Assign a user to a group
+
+    //TODO: Unassign a user to a group
+
     /**
      * Returns a high level permission token for admin operations.
      * Under no circumstances, this method mustn't be called from rest endpoints.
