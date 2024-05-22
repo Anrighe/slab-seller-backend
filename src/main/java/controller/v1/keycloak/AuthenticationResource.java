@@ -89,9 +89,11 @@ public class AuthenticationResource {
         try {
             Response serviceResponse = keycloakService.validateToken(request.getToken());
 
+            // In most cases a 200 response will be returned, independently of the token's validity
             if (serviceResponse.getStatus() != 200)
                 return serviceResponse;
 
+            // At the end the token's validity will be returned in the response
             return Response.ok().entity(new TokenValidationResponseDTO(serviceResponse)).type(MediaType.APPLICATION_JSON).build();
         } catch (Exception e) {
             log.error(e.getMessage());
