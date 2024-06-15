@@ -11,7 +11,7 @@ import java.sql.*;
 import java.time.temporal.*;
 
 /**
- * Classe che inizializza Jdbi passando in input un datasource
+ * Initializes Jdbi by passing a datasource as input
  */
 @Slf4j
 @ApplicationScoped

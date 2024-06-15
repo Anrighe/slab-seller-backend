@@ -1,14 +1,19 @@
-package controller.dto;
+package repository.model;
 
 import lombok.Data;
 
+/**
+ * Model for the
+ */
 @Data
-public class SlabDTO {
+public class PricedSlabAvailabilityEntity {
     private String id;
     private String collection;
     private String color;
     private String tone;
     private int width;
     private int height;
-    private short priceId;
+    private Double price;
+    private String currency;
+    private int quantity;
 }

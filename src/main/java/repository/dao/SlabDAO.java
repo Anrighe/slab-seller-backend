@@ -5,6 +5,7 @@ import org.jdbi.v3.sqlobject.customizer.BindBean;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.jdbi.v3.sqlobject.transaction.Transaction;
+import repository.model.PricedSlabAvailabilityEntity;
 import repository.model.SlabEntity;
 
 import java.util.List;
@@ -14,11 +15,18 @@ public interface SlabDAO {
 
     @SqlQuery("SELECT * FROM slab")
     @RegisterBeanMapper(SlabEntity.class)
-    List<SlabEntity> getAll();
+    List<SlabEntity> getAllProductTypes();
 
     @SqlQuery("SELECT * FROM slab WHERE id = :id")
     @RegisterBeanMapper(SlabEntity.class)
-    Optional<SlabEntity> getById(@BindBean String id);
+    Optional<SlabEntity> getProductTypeById(@BindBean String id);
+
+    @SqlQuery("SELECT s.id, s.collection, s.color, s.tone, s.width, s.height, p.price, p.currency, a.quantity " +
+              "FROM slab s " +
+              "JOIN pricelist p on s.price_id = p.id " +
+              "JOIN availability a on s.id = a.id")
+    @RegisterBeanMapper(PricedSlabAvailabilityEntity.class)
+    List<PricedSlabAvailabilityEntity> getAllProductsWithDetailsAndAvailability();
 
     @Transaction
     @SqlUpdate("UPDATE slab SET " +

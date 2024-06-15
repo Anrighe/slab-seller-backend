@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 import producer.JdbiProducer;
 import repository.dao.SlabDAO;
+import repository.model.PricedSlabAvailabilityEntity;
 import repository.model.SlabEntity;
 
 import java.util.*;
@@ -23,13 +24,18 @@ public class SlabRepository {
     @Inject
     JdbiProducer jdbiProducer;
 
-    public List<SlabEntity> getAll() {
+    public List<SlabEntity> getAllProductTypes() {
         Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
-        return jdbi.withExtension(SlabDAO.class, SlabDAO::getAll);
+        return jdbi.withExtension(SlabDAO.class, SlabDAO::getAllProductTypes);
     }
 
-    public Optional<SlabEntity> getById(String id) {
+    public Optional<SlabEntity> getProductTypeById(String id) {
         Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
-        return jdbi.withExtension(SlabDAO.class, slabDAO -> slabDAO.getById(id));
+        return jdbi.withExtension(SlabDAO.class, slabDAO -> slabDAO.getProductTypeById(id));
+    }
+
+    public List<PricedSlabAvailabilityEntity> getAllProductsWithDetailsAndAvailability() {
+        Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
+        return jdbi.withExtension(SlabDAO.class, SlabDAO::getAllProductsWithDetailsAndAvailability);
     }
 }
