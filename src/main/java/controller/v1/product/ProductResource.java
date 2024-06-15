@@ -1,6 +1,6 @@
 package controller.v1.product;
 
-import Utils.ProductResourceUtils;
+import utils.ProductResourceUtils;
 import controller.dto.SlabDTO;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;

@@ -1,4 +1,4 @@
-package Utils;
+package utils;
 
 import controller.dto.TokenValidationResponseDTO;
 import jakarta.enterprise.context.ApplicationScoped;
