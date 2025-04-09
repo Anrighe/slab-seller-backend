@@ -1,5 +1,7 @@
 package controller.v1.product;
 
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import utils.ProductResourceUtils;
 import controller.dto.SlabDTO;
 import jakarta.inject.Inject;
@@ -53,7 +55,12 @@ public class ProductResource {
             description = "Fetches all types of slabs (note: does not return availability, for that use fetchProductsTypeAndAvailability). " +
                     "The customer client must prove it was able to successfully login by validating its token." +
                     "The header of the request must include a parameter \"Authorization\" with the following value type: \"Bearer JWT_TOKEN\"")
-    public Response fetchProductsType(@HeaderParam("Authorization") String authorization) {
+    public Response fetchProductsType(@Context HttpHeaders headers) {
+        log.info("Fetching products type from the fetchProductsType");
+
+        String authorization = headers.getHeaderString("Authorization");
+        log.info("User authorization: {}", authorization);
+
         try {
             productResourceUtils.validateTokenAndGetResponse(authorization);
             return Response.ok().entity(slabService.getAllProductTypes()).type(MediaType.APPLICATION_JSON).build();
@@ -94,7 +101,12 @@ public class ProductResource {
             description = "Returns a list containing all available slabs (note: for product types only fetchProductsType will be faster) " +
                     "The customer client must prove it was able to successfully login by validating its token." +
                     "The header of the request must include a parameter \"Authorization\" with the following value type: \"Bearer JWT_TOKEN\"")
-    public Response fetchProductsTypeAndAvailability(@HeaderParam("Authorization") String authorization) {
+    public Response fetchProductsTypeAndAvailability(@Context HttpHeaders headers) {
+        log.info("Fetching products type from the fetchProductsTypeAndAvailability");
+
+        String authorization = headers.getHeaderString("Authorization");
+        log.info("User authorization: {}", authorization);
+
         try {
             productResourceUtils.validateTokenAndGetResponse(authorization);
             return Response.ok().entity(slabService.getAllProductsWithDetailsAndAvailability()).type(MediaType.APPLICATION_JSON).build();
