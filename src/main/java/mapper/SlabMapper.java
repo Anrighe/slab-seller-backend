@@ -13,6 +13,9 @@ public interface SlabMapper {
 
     SlabEntity toEntity(SlabDTO dto, int id);
 
+    @Mappings({
+            @Mapping(source = "imagePath", target = "imagePath")
+    })
     SlabDTO toDto(SlabEntity entity);
 
     List<SlabDTO> toDtos(List<SlabEntity> entityList);

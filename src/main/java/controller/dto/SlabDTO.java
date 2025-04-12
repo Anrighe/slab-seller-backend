@@ -11,4 +11,5 @@ public class SlabDTO {
     private int width;
     private int height;
     private short priceId;
+    private String imagePath;
 }

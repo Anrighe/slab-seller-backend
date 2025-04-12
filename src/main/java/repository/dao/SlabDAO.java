@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public interface SlabDAO {
 
-    @SqlQuery("SELECT * FROM slab")
+    @SqlQuery("SELECT id, collection, color, tone, width, height, price_id, image_path FROM slab")
     @RegisterBeanMapper(SlabEntity.class)
     List<SlabEntity> getAllProductTypes();
 

@@ -7,6 +7,7 @@ import jakarta.inject.Inject;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import mapper.SlabMapper;
+import org.eclipse.microprofile.config.ConfigProvider;
 import repository.SlabRepository;
 import repository.model.PricedSlabAvailabilityEntity;
 import repository.model.SlabEntity;
@@ -25,9 +26,14 @@ public class SlabService {
     @Inject
     SlabMapper slabMapper;
 
+    final String IMAGE_BASE_URL = ConfigProvider.getConfig().getValue("image.base.url", String.class);
+
     public List<SlabDTO> getAllProductTypes() {
         List<SlabEntity> all = slabRepository.getAllProductTypes();
-        return slabMapper.toDtos(all);
+        List<SlabDTO> dtos = slabMapper.toDtos(all);
+
+        dtos.forEach(dto -> dto.setImagePath(IMAGE_BASE_URL + dto.getImagePath()));
+        return dtos;
     }
 
     public SlabDTO getProductTypeById(String id) {
