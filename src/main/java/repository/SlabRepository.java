@@ -3,6 +3,7 @@ package repository;
 import io.agroal.api.AgroalDataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
@@ -27,6 +28,11 @@ public class SlabRepository {
     public List<SlabEntity> getAllProductTypes() {
         Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
         return jdbi.withExtension(SlabDAO.class, SlabDAO::getAllProductTypes);
+    }
+
+    public List<SlabEntity> getProductTypesPaged(int limit, int offset) {
+        Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
+        return jdbi.withExtension(SlabDAO.class, slabDAO -> slabDAO.getProductTypesPaged(limit, offset));
     }
 
     public Optional<SlabEntity> getProductTypeById(String id) {

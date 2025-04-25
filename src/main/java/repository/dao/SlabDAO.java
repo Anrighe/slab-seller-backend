@@ -1,6 +1,7 @@
 package repository.dao;
 
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.customizer.BindBean;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
@@ -13,9 +14,15 @@ import java.util.Optional;
 
 public interface SlabDAO {
 
-    @SqlQuery("SELECT id, collection, color, tone, width, height, price_id, image_path FROM slab")
+    // TODO: check if with * still works
+    @SqlQuery("SELECT * FROM slab")
     @RegisterBeanMapper(SlabEntity.class)
     List<SlabEntity> getAllProductTypes();
+
+
+    @SqlQuery("SELECT * FROM slab ORDER BY id ASC LIMIT :limit OFFSET :offset")
+    @RegisterBeanMapper(SlabEntity.class)
+    List<SlabEntity> getProductTypesPaged(@Bind("limit") int limit, @Bind("offset") int offset);
 
     @SqlQuery("SELECT * FROM slab WHERE id = :id")
     @RegisterBeanMapper(SlabEntity.class)

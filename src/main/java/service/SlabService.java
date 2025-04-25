@@ -36,6 +36,14 @@ public class SlabService {
         return dtos;
     }
 
+    public List<SlabDTO> getProductTypesPaged(int limit, int offset) {
+        List<SlabEntity> all = slabRepository.getProductTypesPaged(limit, offset);
+        List<SlabDTO> dtos = slabMapper.toDtos(all);
+
+        dtos.forEach(dto -> dto.setImagePath(IMAGE_BASE_URL + dto.getImagePath()));
+        return dtos;
+    }
+
     public SlabDTO getProductTypeById(String id) {
         Optional<SlabEntity> byId = slabRepository.getProductTypeById(id);
         return byId.map(slabMapper::toDto).orElse(null);

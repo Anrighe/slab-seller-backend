@@ -9,6 +9,4 @@ public class UserCreationRequestDTO {
     private String email;
     private String firstName;
     private String lastName;
-    private boolean enabled;
-    private String token;
 }

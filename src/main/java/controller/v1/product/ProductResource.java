@@ -17,6 +17,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import service.SlabService;
 
+import java.util.List;
+
 @Slf4j
 @Path("/products")
 public class ProductResource {
@@ -55,7 +57,11 @@ public class ProductResource {
             description = "Fetches all types of slabs (note: does not return availability, for that use fetchProductsTypeAndAvailability). " +
                     "The customer client must prove it was able to successfully login by validating its token." +
                     "The header of the request must include a parameter \"Authorization\" with the following value type: \"Bearer JWT_TOKEN\"")
-    public Response fetchProductsType(@Context HttpHeaders headers) {
+    public Response fetchProductsType(
+            @Context HttpHeaders headers,
+            @QueryParam("limit") @DefaultValue("20") int limit,
+            @QueryParam("offset") @DefaultValue("0") int offset) {
+
         log.info("Fetching products type from the fetchProductsType");
 
         String authorization = headers.getHeaderString("Authorization");
@@ -63,7 +69,9 @@ public class ProductResource {
 
         try {
             productResourceUtils.validateTokenAndGetResponse(authorization);
-            return Response.ok().entity(slabService.getAllProductTypes()).type(MediaType.APPLICATION_JSON).build();
+            List<SlabDTO> slabs = slabService.getProductTypesPaged(limit, offset);
+
+            return Response.ok().entity(slabs).type(MediaType.APPLICATION_JSON).build();
         } catch (WebApplicationException e) {
             log.error("WebApplicationException in fetchProducts: {}", e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();

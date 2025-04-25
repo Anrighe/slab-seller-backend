@@ -17,6 +17,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.time.Instant;
 import java.util.ArrayList;
 
 
@@ -29,29 +30,33 @@ import java.util.ArrayList;
 public class KeycloakService {
 
     // Configuration parameters
-    private String HIGH_LEVEL_PERMISSION_USERNAME = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-username", String.class);
-    private String HIGH_LEVEL_PERMISSION_PASSWORD = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-password", String.class);
+    private final String HIGH_LEVEL_PERMISSION_USERNAME = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-username", String.class);
+    private final String HIGH_LEVEL_PERMISSION_PASSWORD = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-password", String.class);
 
-    private String AUTH_SERVER_URL = ConfigProvider.getConfig().getValue("keycloak.auth-server-url", String.class);
-    private String REALM = ConfigProvider.getConfig().getValue("keycloak.realm", String.class);
+    private String cachedHighLevelPermissionToken;
+    private Instant highLevelPermissionTokenExpiry;
+    private final int HIGH_LEVEL_PERMISSION_TOKEN_DURATION_IN_SECONDS = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-token-validity-seconds", Integer.class);
 
-    private String GENERIC_REST_CLIENT_ID = ConfigProvider.getConfig().getValue("keycloak.generic-rest-client.resource", String.class);
-    private String GENERIC_REST_CLIENT_SECRET = ConfigProvider.getConfig().getValue("keycloak.generic-rest-client.credentials.secret", String.class);
+    private final String AUTH_SERVER_URL = ConfigProvider.getConfig().getValue("keycloak.auth-server-url", String.class);
+    private final String REALM = ConfigProvider.getConfig().getValue("keycloak.realm", String.class);
 
-    private String TOKEN_REST_CLIENT_ID = ConfigProvider.getConfig().getValue("keycloak.token-rest-client.resource", String.class);
+    private final String GENERIC_REST_CLIENT_ID = ConfigProvider.getConfig().getValue("keycloak.generic-rest-client.resource", String.class);
+    private final String GENERIC_REST_CLIENT_SECRET = ConfigProvider.getConfig().getValue("keycloak.generic-rest-client.credentials.secret", String.class);
 
-    private String TOKEN_REQUEST_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
-    private String TOKEN_REFRESH_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-refresh-endpoint", String.class);
-    private String TOKEN_VALIDATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
-    private String USER_CREATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
-    private String USER_INFO_UPDATE_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
-    private String USER_PASSWORD_UPDATE_ENDPOINT_FIRST = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
-    private String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
-    private String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
+    private final String TOKEN_REST_CLIENT_ID = ConfigProvider.getConfig().getValue("keycloak.token-rest-client.resource", String.class);
+
+    private final String TOKEN_REQUEST_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-request-endpoint", String.class);
+    private final String TOKEN_REFRESH_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-refresh-endpoint", String.class);
+    private final String TOKEN_VALIDATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.token-introspection-endpoint", String.class);
+    private final String USER_CREATION_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-creation-endpoint", String.class);
+    private final String USER_INFO_UPDATE_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
+    private final String USER_PASSWORD_UPDATE_ENDPOINT_FIRST = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
+    private final String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
+    private final String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
+
 
     /**
-     * Request a token from Keycloak
-     *
+     * Requests a token from Keycloak
      * @param authenticationRequestDTO the authentication request
      * @return a Response containing the token
      * @throws RuntimeException if an error occurs during the request
@@ -78,8 +83,7 @@ public class KeycloakService {
     }
 
     /*
-     * Refresh a token with Keycloak. In order to refresh a token, the client must have a refresh token.
-     *
+     * Refreshes a token with Keycloak (the client must possess refresh token).
      * @param refreshToken the refresh token
      * @return a Response containing the new token
      * @throws RuntimeException if an error occurs during the refresh
@@ -105,8 +109,7 @@ public class KeycloakService {
     }
 
     /**
-     * Validate a token with Keycloak
-     *
+     * Validates a token with Keycloak
      * @param token the token to validate
      * @return a Response containing the result of the validation
      * @throws RuntimeException if an error occurs during the validation
@@ -133,8 +136,7 @@ public class KeycloakService {
     }
 
     /**
-     * Create a user in Keycloak
-     *
+     * Creates a user in Keycloak
      * @param userCreationRequestDTO the user creation request
      * @return a Response containing the result of the user creation
      * @throws RuntimeException if an error occurs during the creation
@@ -143,7 +145,7 @@ public class KeycloakService {
 
         JSONObject requestBody = new JSONObject()
                 .put("username", userCreationRequestDTO.getUsername())
-                .put("enabled", userCreationRequestDTO.isEnabled())
+                .put("enabled", true)
                 .put("email", userCreationRequestDTO.getEmail())
                 .put("firstName", userCreationRequestDTO.getFirstName())
                 .put("lastName", userCreationRequestDTO.getLastName())
@@ -160,15 +162,20 @@ public class KeycloakService {
             try (Response response = client.target(AUTH_SERVER_URL + USER_CREATION_ENDPOINT)
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + userCreationRequestDTO.getToken())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
                     .accept("application/json")
                     .post(Entity.json(requestBody))) {
 
 
                 if (response.getStatus() == 201) {
                     return Response.status(response.getStatus()).entity(response.getEntity()).build();
+                } else if (response.getStatus() == 409) {
+                    log.warn("User {} already exists", userCreationRequestDTO.getUsername());
+                    return Response.status(Response.Status.CONFLICT)
+                            .entity("User with the given username or email already exists.")
+                            .build();
                 } else {
-                    log.error(response.getStatus() + " " + response.readEntity(String.class));
+                    log.error("{} {}", response.getStatus(), response.readEntity(String.class));
                     throw new RuntimeException("Failed to create user. Status code: " + response.getStatus());
                 }
             }
@@ -178,8 +185,7 @@ public class KeycloakService {
     }
 
     /**
-     * Update user information in Keycloak
-     *
+     * Updates user information in Keycloak
      * @param userInfoUpdateRequestDTO the user information update request
      * @return a Response containing the result of the user information update
      * @throws RuntimeException if an error occurs during the update
@@ -188,8 +194,9 @@ public class KeycloakService {
 
         JSONObject requestBody = new JSONObject();
 
-        assert userInfoUpdateRequestDTO.getUserId() != null;
-        assert userInfoUpdateRequestDTO.getToken() != null;
+        if (userInfoUpdateRequestDTO.getUserId() == null || userInfoUpdateRequestDTO.getToken() == null) {
+            throw new IllegalArgumentException("User ID and Token must not be null");
+        }
 
         if (userInfoUpdateRequestDTO.getEmail() != null)
             requestBody.put("email", userInfoUpdateRequestDTO.getEmail());
@@ -213,7 +220,7 @@ public class KeycloakService {
                 if (response.getStatus() == Response.Status.NO_CONTENT.getStatusCode()) {
                     return Response.status(response.getStatus()).entity(response.getEntity()).build();
                 } else {
-                    log.error(response.getStatus() + " " + response.readEntity(String.class));
+                    log.error("{} {}", response.getStatus(), response.readEntity(String.class));
                     throw new RuntimeException("Failed to update the user. Status code: " + response.getStatus());
                 }
             }
@@ -285,12 +292,18 @@ public class KeycloakService {
 
     /**
      * Returns a high level permission token for admin operations.
-     * Under no circumstances, this method mustn't be called from rest endpoints.
-     *
+     * !!! Under no circumstances, this method must not be callable directly from rest endpoints !!!
      * @return a token with high level permissions
      * @throws RuntimeException if an error occurs during the token request
      */
     private String getHighLevelPermissionToken() {
+
+        if (cachedHighLevelPermissionToken != null &&
+                highLevelPermissionTokenExpiry == null &&
+                Instant.now().isAfter(highLevelPermissionTokenExpiry.minusSeconds(HIGH_LEVEL_PERMISSION_TOKEN_DURATION_IN_SECONDS))) {
+            return cachedHighLevelPermissionToken;
+        }
+
         Form requestBody = new Form()
                 .param("grant_type", "password")
                 .param("client_id", TOKEN_REST_CLIENT_ID)
@@ -322,7 +335,6 @@ public class KeycloakService {
      * Get user information from Keycloak. It might return more than one user since it checks if the parameter
      * passed as argument is contained in all the usernames.
      * Beware this method uses a high level permission token. It mustn't be called from rest endpoints.
-     *
      * @param username the username of the user
      * @return a Response containing the user information. The body of the response is a JSON array
      * @throws RuntimeException if an error occurs during the request
