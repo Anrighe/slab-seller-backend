@@ -15,7 +15,7 @@ import service.KeycloakService;
  * RESTful web service controller that handles authentication-related requests.
  * It uses the KeycloakTokenService to interact with the Keycloak authentication server.
  */
-@Path("/api/authentication")
+@Path("/api/v1/authentication")
 @Slf4j
 public class AuthenticationResource {
     @Inject

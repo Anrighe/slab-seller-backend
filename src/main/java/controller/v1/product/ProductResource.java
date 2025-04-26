@@ -20,7 +20,7 @@ import service.SlabService;
 import java.util.List;
 
 @Slf4j
-@Path("/products")
+@Path("api/v1/products")
 public class ProductResource {
 
     @Inject

@@ -15,7 +15,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import service.KeycloakService;
 
-@Path("/api/user")
+@Path("/api/v1/user")
 @Slf4j
 public class UserResource {
 

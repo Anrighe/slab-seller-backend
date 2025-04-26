@@ -32,9 +32,6 @@ public class KeycloakService {
     // Configuration parameters
     private final String HIGH_LEVEL_PERMISSION_USERNAME = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-username", String.class);
     private final String HIGH_LEVEL_PERMISSION_PASSWORD = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-password", String.class);
-
-    private String cachedHighLevelPermissionToken;
-    private Instant highLevelPermissionTokenExpiry;
     private final int HIGH_LEVEL_PERMISSION_TOKEN_DURATION_IN_SECONDS = ConfigProvider.getConfig().getValue("keycloak.high-level-permission-token-validity-seconds", Integer.class);
 
     private final String AUTH_SERVER_URL = ConfigProvider.getConfig().getValue("keycloak.auth-server-url", String.class);
@@ -54,6 +51,8 @@ public class KeycloakService {
     private final String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
     private final String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
 
+    private String cachedHighLevelPermissionToken;
+    private Instant highLevelPermissionTokenExpiry;
 
     /**
      * Requests a token from Keycloak
