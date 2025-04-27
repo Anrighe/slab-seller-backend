@@ -1,8 +1,9 @@
 package controller.v1.product;
 
+import controller.dto.TokenValidationResponseDTO;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
-import utils.ProductResourceUtils;
+import service.KeycloakService;
 import controller.dto.SlabDTO;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -27,7 +28,7 @@ public class ProductResource {
     SlabService slabService;
 
     @Inject
-    ProductResourceUtils productResourceUtils;
+    KeycloakService keycloakService;
 
     @GET
     @Path("/type")
@@ -68,7 +69,12 @@ public class ProductResource {
         log.info("User authorization: {}", authorization);
 
         try {
-            productResourceUtils.validateTokenAndGetResponse(authorization);
+            // Token validation
+            TokenValidationResponseDTO tokenValidationResponseDTO = keycloakService.validateTokenAndGetResponse(authorization);
+            if (!tokenValidationResponseDTO.isTokenValid()) {
+                return Response.status(Response.Status.UNAUTHORIZED).build();
+            }
+
             List<SlabDTO> slabs = slabService.getProductTypesPaged(limit, offset);
 
             return Response.ok().entity(slabs).type(MediaType.APPLICATION_JSON).build();
@@ -116,7 +122,12 @@ public class ProductResource {
         log.info("User authorization: {}", authorization);
 
         try {
-            productResourceUtils.validateTokenAndGetResponse(authorization);
+            TokenValidationResponseDTO tokenValidationResponseDTO = keycloakService.validateTokenAndGetResponse(authorization);
+
+            if (!tokenValidationResponseDTO.isTokenValid()) {
+                return Response.status(Response.Status.UNAUTHORIZED).build();
+            }
+
             return Response.ok().entity(slabService.getAllProductsWithDetailsAndAvailability()).type(MediaType.APPLICATION_JSON).build();
         } catch (WebApplicationException e) {
             log.error("WebApplicationException in fetchProducts: {}", e.getMessage());
