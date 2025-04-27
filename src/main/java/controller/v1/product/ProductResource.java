@@ -65,11 +65,11 @@ public class ProductResource {
 
         log.info("Fetching products type from the fetchProductsType");
 
-        String authorization = headers.getHeaderString("Authorization");
-        log.info("User authorization: {}", authorization);
-
         try {
-            // Token validation
+            // Request token validation
+            String authorization = headers.getHeaderString("Authorization");
+            log.info("User authorization: {}", authorization);
+
             TokenValidationResponseDTO tokenValidationResponseDTO = keycloakService.validateTokenAndGetResponse(authorization);
             if (!tokenValidationResponseDTO.isTokenValid()) {
                 return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -78,6 +78,7 @@ public class ProductResource {
             List<SlabDTO> slabs = slabService.getProductTypesPaged(limit, offset);
 
             return Response.ok().entity(slabs).type(MediaType.APPLICATION_JSON).build();
+
         } catch (WebApplicationException e) {
             log.error("WebApplicationException in fetchProducts: {}", e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -118,17 +119,19 @@ public class ProductResource {
     public Response fetchProductsTypeAndAvailability(@Context HttpHeaders headers) {
         log.info("Fetching products type from the fetchProductsTypeAndAvailability");
 
-        String authorization = headers.getHeaderString("Authorization");
-        log.info("User authorization: {}", authorization);
-
         try {
-            TokenValidationResponseDTO tokenValidationResponseDTO = keycloakService.validateTokenAndGetResponse(authorization);
 
+            // Request token validation
+            String authorization = headers.getHeaderString("Authorization");
+            log.info("User authorization: {}", authorization);
+
+            TokenValidationResponseDTO tokenValidationResponseDTO = keycloakService.validateTokenAndGetResponse(authorization);
             if (!tokenValidationResponseDTO.isTokenValid()) {
                 return Response.status(Response.Status.UNAUTHORIZED).build();
             }
 
             return Response.ok().entity(slabService.getAllProductsWithDetailsAndAvailability()).type(MediaType.APPLICATION_JSON).build();
+
         } catch (WebApplicationException e) {
             log.error("WebApplicationException in fetchProducts: {}", e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
