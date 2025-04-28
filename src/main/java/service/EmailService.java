@@ -7,19 +7,17 @@ import controller.dto.EmailSendRequestDTO;
 import controller.dto.PasswordRecoveryRequestDTO;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.ConfigProvider;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Slf4j
@@ -37,16 +35,23 @@ public class EmailService {
     private final String EMAIL_SENDER = EMAIL_API_SENDER_USER + "@" + EMAIL_API_DOMAIN;
 
 
+    public Response sendEmail(PasswordRecoveryRequestDTO passwordRecoveryRequestDTO, Map<String, String> personalizationData) throws RuntimeException {
 
-    public Response sendEmail(PasswordRecoveryRequestDTO passwordRecoveryRequestDTO) throws RuntimeException {
+        List<Map<String, Object>> personalizationList = List.of(
+                Map.of(
+                        "email", passwordRecoveryRequestDTO.getEmail(),
+                        "data", personalizationData
+                )
+        );
 
         EmailSendRequestDTO emailSendRequestDTO = new EmailSendRequestDTO(
                 new EmailAddressDTO(EMAIL_SENDER, EMAIL_API_SENDER_NAME),
                 List.of(new EmailAddressDTO(passwordRecoveryRequestDTO.getEmail(), "TEST")),
                 "Slab seller - Password recovery",
                 "Slab seller - Password recovery",
-                EMAIL_API_TEMPLATE_PASSWORD_RECOVERY_ID,
-                new ArrayList<>()
+                "",
+                personalizationList,
+                EMAIL_API_TEMPLATE_PASSWORD_RECOVERY_ID
         );
 
         Client client = ClientBuilder.newClient();
@@ -55,7 +60,6 @@ public class EmailService {
         try {
             ObjectMapper mapper = new ObjectMapper();
             String json = mapper.writeValueAsString(emailSendRequestDTO);
-
 
             return client.target(EMAIL_API_ENDPOINT)
                     .request()

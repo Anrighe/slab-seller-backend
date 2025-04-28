@@ -3,7 +3,6 @@ package controller.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import service.EmailService;
 
 import java.util.List;
 import java.util.Map;
@@ -19,4 +18,5 @@ public class EmailSendRequestDTO {
     private String text;
     private String html;
     private List<Map<String, Object>> personalization;
+    private String template_id;
 }
