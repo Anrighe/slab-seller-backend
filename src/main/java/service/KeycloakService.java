@@ -1,6 +1,7 @@
 package service;
 
 import controller.dto.*;
+import io.vertx.ext.auth.User;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.client.Client;
@@ -11,9 +12,11 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.camel.util.Pair;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import repository.model.UserEntity;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,7 +50,7 @@ public class KeycloakService {
     private final String USER_INFO_UPDATE_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-update-endpoint", String.class);
     private final String USER_PASSWORD_UPDATE_ENDPOINT_FIRST = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-first", String.class);
     private final String USER_PASSWORD_UPDATE_ENDPOINT_SECOND = ConfigProvider.getConfig().getValue("keycloak.user-password-update-endpoint-second", String.class);
-    private final String USER_ID_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-id-endpoint", String.class);
+    private final String USER_INFO_ENDPOINT = ConfigProvider.getConfig().getValue("keycloak.user-info-endpoint", String.class);
 
     private String cachedHighLevelPermissionToken;
     private Instant highLevelPermissionTokenExpiry;
@@ -242,8 +245,13 @@ public class KeycloakService {
         Client client = ClientBuilder.newClient();
 
         try {
-            return client.target(AUTH_SERVER_URL + USER_PASSWORD_UPDATE_ENDPOINT_FIRST + "/"
-                            + getUserId(userPasswordUpdateRequestDTO.getUsername()) + USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
+            return client.target(String.format(
+                    "%s%s/%s%s",
+                    AUTH_SERVER_URL,
+                    USER_PASSWORD_UPDATE_ENDPOINT_FIRST,
+                    getUserId(new Pair<>("username", userPasswordUpdateRequestDTO.getUsername())),
+                    USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
+            )
                     .request()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
@@ -332,40 +340,39 @@ public class KeycloakService {
      * Get user information from Keycloak. It might return more than one user since it checks if the parameter
      * passed as argument is contained in all the usernames.
      * Beware this method uses a high level permission token. It mustn't be called from rest endpoints.
-     * @param username the username of the user
+     * @param queryParam key value pair (e.g.: "username": "<username of the user>")
      * @return a Response containing the user information. The body of the response is a JSON array
      * @throws RuntimeException if an error occurs during the request
      */
-    private Response getUserInfo(String username) throws RuntimeException {
+    private Response getUserInfo(Pair<String> queryParam) throws RuntimeException {
         Client client = ClientBuilder.newClient();
 
         try {
-            return client.target(AUTH_SERVER_URL + USER_ID_ENDPOINT + "?username=" + username)
+            return client.target(String.format("%s%s?%s=%s", AUTH_SERVER_URL, USER_INFO_ENDPOINT, queryParam.getLeft(), queryParam.getRight()))
                     .request()
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
                     .accept("application/json")
                     .get();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to obtain user id: " + e.getMessage());
+            throw new RuntimeException("Failed to obtain user info: " + e.getMessage());
         }
     }
 
     /**
      * Get the user id from Keycloak.
-     * This method uses a high level permission token. It mustn't be called from rest endpoints.
-     *
-     * @param username the username of the user
+     * This method uses a high level permission token. It mustn't be called directly in any publicly exposed rest endpoints!
+     * @param queryParam key value pair (e.g.: "username": "<username of the user>")
      * @return the user id. If no user is found, it returns null
      * @throws RuntimeException if an error occurs during the request
      */
-    private String getUserId(String username) throws RuntimeException {
+    private String getUserId(Pair<String> queryParam) throws RuntimeException {
         try {
-            Response response = getUserInfo(username);
+            Response response = getUserInfo(queryParam);
             JSONArray jsonArrayResponse = new JSONArray(response.readEntity(String.class));
 
             for (int i = 0; i < jsonArrayResponse.length(); ++i) {
                 JSONObject jsonObject = jsonArrayResponse.getJSONObject(i);
-                if (jsonObject.getString("username").equals(username)) {
+                if (jsonObject.getString(queryParam.getLeft()).equals(queryParam.getRight())) {
                     return jsonObject.getString("id");
                 }
             }
@@ -376,6 +383,34 @@ public class KeycloakService {
 
         return null;
     }
+
+    /**
+     * Get the user data from Keycloak using a specified query param.
+     * This method uses a high level permission token. It mustn't be called directly in any publicly exposed rest endpoints!
+     * @param queryParam key value pair (e.g.: "username": "<username of the user>")
+     * @return the user id. If no user is found, it returns null
+     * @throws RuntimeException if an error occurs during the request
+     */
+    public UserEntity getUserByValue(Pair<String> queryParam) throws RuntimeException {
+        try {
+            Response response = getUserInfo(queryParam);
+            JSONArray jsonArrayResponse = new JSONArray(response.readEntity(String.class));
+
+            for (int i = 0; i < jsonArrayResponse.length(); ++i) {
+                JSONObject jsonObject = jsonArrayResponse.getJSONObject(i);
+                if (jsonObject.getString(queryParam.getLeft()).equals(queryParam.getRight())) {
+                    return new UserEntity(jsonObject);
+                }
+            }
+
+            return new UserEntity();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to obtain user id: " + e.getMessage());
+        }
+    }
+
+
 
     /**
      * Validates the authorization token and returns the token validation response DTO
@@ -403,4 +438,6 @@ public class KeycloakService {
 
         return tokenValidationResponseDTO;
     }
+
+
 }

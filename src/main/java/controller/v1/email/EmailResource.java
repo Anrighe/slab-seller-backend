@@ -12,10 +12,14 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.camel.util.Pair;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.json.JSONObject;
+import repository.model.UserEntity;
 import service.EmailService;
 import service.KeycloakService;
+import service.PasswordService;
 
 import java.util.Map;
 
@@ -63,31 +67,43 @@ public class EmailResource {
                 return Response.status(Response.Status.UNAUTHORIZED).build();
             }*/
 
-            //TODO: Check se la mail esiste tra gli utenti (richiesta a keycloak?)
-            String username = "Idiota";
+            UserEntity user = keycloakService.getUserByValue(new Pair<>("email", passwordRecoveryRequestDTO.getEmail()));
 
-            //TODO: Creare una nuova password
+            // If the user does not exist, or it's disabled, return 200: no mail will be sent
+            if (user.getId() == null || user.getUsername() == null || user.getEmail() == null || !user.isEnabled()) {
+                return Response.status(Response.Status.OK).build();
+            }
+
+            String generatedPassword = PasswordService.generatePassword();
             //TODO: Impostare la nuova password TEMPORANEA all'utente
-            String generatedPassword = "12345";
 
             Map<String, String> personalizationData = Map.of(
-                    "username", username,
+                    "username", user.getUsername(),
                     "password", generatedPassword
             );
 
-            Response emailServiceResponse = emailService.sendEmail(passwordRecoveryRequestDTO, personalizationData);
+            // Response emailServiceResponse = emailService.sendEmail(passwordRecoveryRequestDTO, personalizationData);
 
-            if (emailServiceResponse.getStatus() == Response.Status.ACCEPTED.getStatusCode()) {
-                return Response.status(Response.Status.OK).build();
-            } else {
-                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            try (Response emailServiceResponse = emailService.sendEmail(passwordRecoveryRequestDTO, personalizationData)) {
+                if (emailServiceResponse.getStatus() == Response.Status.ACCEPTED.getStatusCode()) {
+                    return Response.status(Response.Status.OK).build();
+                } else {
+                    return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+                }
             }
 
+            //TODO: loggare su database l'invio della mail di ripristino password
+
+
+
         } catch (WebApplicationException e) {
-            log.error("Error sending email, token is unauthorized: {}", e.getMessage());
+            log.error("Error during password recovery procedure, token is unauthorized: {}", e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (RuntimeException e) {
+            log.error("Runtime exception during password recovery procedure: {}", e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         } catch (Exception e) {
-            log.error("Generic exception while sending email: {}", e.getMessage());
+            log.error("Generic exception during password recovery procedure: {}", e.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
     }
