@@ -2,9 +2,6 @@ package repository.model;
 
 import lombok.Data;
 
-/**
- * Model for the
- */
 @Data
 public class PricedSlabAvailabilityEntity {
     private String id;

@@ -1,7 +1,6 @@
 package repository.model;
 
 import lombok.*;
-import org.jdbi.v3.core.mapper.reflect.ColumnName;
 
 @Data
 public class SlabEntity {

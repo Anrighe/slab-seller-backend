@@ -26,7 +26,7 @@ public class PasswordService {
         return generatePassword(STANDARD_PASSWORD_LENGTH);
     }
 
-    public static String generatePassword(int passwordLength) throws IllegalArgumentException {
+    public static String generatePassword(final int passwordLength) throws IllegalArgumentException {
         if (passwordLength < MINIMUM_PASSWORD_LENGTH) {
             throw new IllegalArgumentException("Minimum password length is " + MINIMUM_PASSWORD_LENGTH);
         }
@@ -48,7 +48,7 @@ public class PasswordService {
 
         List<Character> passwordChars = new ArrayList<>();
 
-        for (int index= 0; index < passwordComponentsBuilder.length(); index++) {
+        for (int index = 0; index < passwordComponentsBuilder.length(); index++) {
             passwordChars.add(passwordComponentsBuilder.charAt(index));
         }
 
@@ -60,5 +60,4 @@ public class PasswordService {
 
         return passwordBuilder.toString();
     }
-
 }
