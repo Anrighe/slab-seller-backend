@@ -52,9 +52,6 @@ public class EmailResource {
                     responseCode = "400",
                     description = "Bad Request"),
             @APIResponse(
-                    responseCode = "401",
-                    description = "Unauthorized"),
-            @APIResponse(
                     responseCode = "403",
                     description = "Forbidden"),
             @APIResponse(
@@ -104,9 +101,8 @@ public class EmailResource {
             }
 
             // Invalidate all the other password recovery requests for the user
-            if (!passwordRecoveryRequestRepository.invalidatePasswordRecoveryRequestsForEmail(passwordRecoveryRequestEntity)) {
-                log.error("Error while invalidating all other password recovery requests for user {}", user.getUsername());
-                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            if (passwordRecoveryRequestRepository.invalidatePasswordRecoveryRequestsForEmail(passwordRecoveryRequestEntity)) {
+                log.error("Invalidated all other password recovery requests for user {}", user.getUsername());
             }
 
             // Insert the new password recovery request
