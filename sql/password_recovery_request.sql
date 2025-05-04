@@ -2,12 +2,12 @@ create table public.password_recovery_request
 (
     id              SERIAL PRIMARY KEY,
     email           TEXT NOT NULL,
-    send_time       TIMESTAMP NOT NULL default now(),
-    expiry_time     TIMESTAMP NOT NULL default (now() + interval '3 hours'),
-    used            boolean NOT NULL default false,
+    send_time       TIMESTAMP NOT NULL DEFAULT now(),
+    expiry_time     TIMESTAMP NOT NULL DEFAULT (now() + INTERVAL '3 hours'),
+    used            BOOLEAN NOT NULL DEFAULT FALSE,
     used_time       TIMESTAMP,
-    hashed_id       VARCHAR(255) NOT NULL DEFAULT md5(random()::text),
-    disabled        BOOLEAN DEFAULT false NOT NULL
+    hashed_id       VARCHAR(255) NOT NULL UNIQUE DEFAULT md5(random()::TEXT),
+    disabled        BOOLEAN DEFAULT FALSE NOT NULL
 );
 
 COMMENT ON COLUMN public.password_recovery_request.id is

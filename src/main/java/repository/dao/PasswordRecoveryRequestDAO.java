@@ -1,6 +1,7 @@
 package repository.dao;
 
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.customizer.BindBean;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
@@ -25,4 +26,8 @@ public interface PasswordRecoveryRequestDAO {
     @SqlQuery("SELECT * FROM password_recovery_request WHERE email = :email")
     @RegisterBeanMapper(PasswordRecoveryRequestEntity.class)
     List<PasswordRecoveryRequestEntity> getAllPasswordRecoveryRequestForEmail(@BindBean PasswordRecoveryRequestEntity entity);
+
+    @SqlQuery("SELECT * FROM password_recovery_request WHERE hashed_id = :hashedId")
+    @RegisterBeanMapper(PasswordRecoveryRequestEntity.class)
+    PasswordRecoveryRequestEntity getPasswordRecoveryRequestByHashedId(@Bind("hashedId") String hashedId);
 }

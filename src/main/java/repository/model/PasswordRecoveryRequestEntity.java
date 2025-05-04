@@ -30,6 +30,6 @@ public class PasswordRecoveryRequestEntity {
      * @return true if the password recovery request has not been used, disabled or expired; false otherwise
      */
     public boolean isValid() {
-        return !used && !disabled && expiryTime != null && !expiryTime.isBefore(LocalDateTime.now());
+        return !used && usedTime == null && !disabled && expiryTime != null && !expiryTime.isBefore(LocalDateTime.now());
     }
 }

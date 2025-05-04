@@ -229,17 +229,27 @@ public class KeycloakService {
         }
     }
 
+
     /**
      * Update user password in Keycloak. Only an admin token owner may perform this operation
-     *
      * @param userPasswordUpdateRequestDTO the user password update request
      * @return a Response containing the result of the user password update
      * @throws RuntimeException if an error occurs during the update
      */
     public Response updateUserPassword(UserPasswordUpdateRequestDTO userPasswordUpdateRequestDTO) throws RuntimeException {
+        return updateUserPassword(userPasswordUpdateRequestDTO.getUsername(), userPasswordUpdateRequestDTO.getNewPassword());
+    }
+    /**
+     * Update user password in Keycloak. Only an admin token owner may perform this operation
+     * @param username username of the user
+     * @param newPassword new password to set for the user
+     * @return a Response containing the result of the user password update
+     * @throws RuntimeException if an error occurs during the update
+     */
+    public Response updateUserPassword(final String username, final String newPassword) throws RuntimeException {
         JSONObject requestBody = new JSONObject()
                 .put("type", "password")
-                .put("value", userPasswordUpdateRequestDTO.getNewPassword())
+                .put("value", newPassword)
                 .put("temporary", false);
 
         Client client = ClientBuilder.newClient();
@@ -249,7 +259,7 @@ public class KeycloakService {
                     "%s%s/%s%s",
                     AUTH_SERVER_URL,
                     USER_PASSWORD_UPDATE_ENDPOINT_FIRST,
-                    getUserId(new Pair<>("username", userPasswordUpdateRequestDTO.getUsername())),
+                    getUserId(new Pair<>("username", username)),
                     USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
             )
                     .request()

@@ -46,5 +46,10 @@ public class PasswordRecoveryRequestRepository {
 
         return jdbi.withExtension(PasswordRecoveryRequestDAO.class, dao -> dao.getAllPasswordRecoveryRequestForEmail(entity));
     }
-}
 
+    public PasswordRecoveryRequestEntity getPasswordRecoveryRequestByHashedId(String hashedId) {
+        Jdbi jdbi = jdbiProducer.getJdbi(defaultDataSource);
+
+        return jdbi.withExtension(PasswordRecoveryRequestDAO.class, dao -> dao.getPasswordRecoveryRequestByHashedId(hashedId));
+    }
+}

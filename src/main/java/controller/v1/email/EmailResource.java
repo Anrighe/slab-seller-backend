@@ -7,8 +7,6 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +20,6 @@ import repository.model.PasswordRecoveryRequestEntity;
 import repository.model.UserEntity;
 import service.EmailService;
 import service.KeycloakService;
-import service.PasswordService;
 import utils.HashUtil;
 import utils.PasswordRecoveryRequestUtil;
 
@@ -36,6 +33,8 @@ public class EmailResource {
 
     private final int PASSWORD_RECOVERY_REQUEST_TIMEOUT_SECONDS = ConfigProvider.getConfig().getValue("mailsender.password-recovery-request-timeout-seconds", Integer.class);
 
+    private final String HTTP_FRONT_END_CORS_ORIGIN = ConfigProvider.getConfig().getValue("quarkus.http.cors.origins", String.class);
+    private final String FRONT_END_RESET_PASSWORD_ROUTE = "/passwordrecovery/reset";
 
     @Inject
     EmailService emailService;
@@ -45,7 +44,7 @@ public class EmailResource {
     PasswordRecoveryRequestRepository passwordRecoveryRequestRepository;
 
     @POST
-    @Path("/send")
+    @Path("/passwordrecovery")
     @Consumes(MediaType.APPLICATION_JSON)
     @APIResponses(value = {
             @APIResponse(
@@ -111,12 +110,10 @@ public class EmailResource {
                 return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
             }
 
-            //TODO: Scrap the temporary password part: the user will be able to chose its password
-            String generatedPassword = PasswordService.generatePassword();
-
+            // Data used to populate the email template
             Map<String, String> personalizationData = Map.of(
                     "username", user.getUsername(),
-                    "password", generatedPassword
+                    "resetlink", String.format("%s%s/%s", HTTP_FRONT_END_CORS_ORIGIN, FRONT_END_RESET_PASSWORD_ROUTE, generatedHash)
             );
 
             try (Response emailServiceResponse = emailService.sendEmail(passwordRecoveryRequestDTO, personalizationData)) {

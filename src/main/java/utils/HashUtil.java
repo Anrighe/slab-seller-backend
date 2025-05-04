@@ -28,7 +28,7 @@ public class HashUtil {
             String toHash = String.format("%s%s%s", salt, string, time);
 
             byte[] hashBytes = digest.digest(toHash.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().encodeToString(hashBytes);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hashBytes);
 
         } catch (NoSuchAlgorithmException e) {
             String error = String.format("Error while generating Url Friendly Hash: %s", e.getMessage());
