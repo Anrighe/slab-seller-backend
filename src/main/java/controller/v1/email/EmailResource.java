@@ -1,12 +1,9 @@
 package controller.v1.email;
 
 
-import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.*;
 import controller.dto.PasswordRecoveryRequestDTO;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;

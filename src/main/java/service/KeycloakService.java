@@ -237,16 +237,18 @@ public class KeycloakService {
      * @throws RuntimeException if an error occurs during the update
      */
     public Response updateUserPassword(UserPasswordUpdateRequestDTO userPasswordUpdateRequestDTO) throws RuntimeException {
-        return updateUserPassword(userPasswordUpdateRequestDTO.getUsername(), userPasswordUpdateRequestDTO.getNewPassword());
+        return updateUserPassword(userPasswordUpdateRequestDTO.getUsername(), userPasswordUpdateRequestDTO.getNewPassword(), userPasswordUpdateRequestDTO.getUserId());
     }
+
     /**
      * Update user password in Keycloak. Only an admin token owner may perform this operation
      * @param username username of the user
      * @param newPassword new password to set for the user
+     * @param userId keycloak Id of the user
      * @return a Response containing the result of the user password update
      * @throws RuntimeException if an error occurs during the update
      */
-    public Response updateUserPassword(final String username, final String newPassword) throws RuntimeException {
+    public Response updateUserPassword(final String username, final String newPassword, final String userId) throws RuntimeException {
         JSONObject requestBody = new JSONObject()
                 .put("type", "password")
                 .put("value", newPassword)
@@ -259,7 +261,7 @@ public class KeycloakService {
                     "%s%s/%s%s",
                     AUTH_SERVER_URL,
                     USER_PASSWORD_UPDATE_ENDPOINT_FIRST,
-                    getUserId(new Pair<>("username", username)),
+                    userId,
                     USER_PASSWORD_UPDATE_ENDPOINT_SECOND)
             )
                     .request()
@@ -447,6 +449,37 @@ public class KeycloakService {
         }
 
         return tokenValidationResponseDTO;
+    }
+
+    /**
+     * Gets the keycloak uuid of a user. Be aware this method uses high level permission for this query.
+     * @param userEmail email of the user
+     * @return id of the user in String form
+     * @throws RuntimeException if an error occurs during the request
+     */
+    public String getUserIdFromEmail(final String userEmail) throws RuntimeException {
+        Client client = ClientBuilder.newClient();
+
+        try {
+            Response response = client.target(String.format("%s%s?%s=%s", AUTH_SERVER_URL, USER_INFO_ENDPOINT, "email", userEmail))
+                    .request()
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getHighLevelPermissionToken())
+                    .accept("application/json")
+                    .get();
+
+            JSONArray jsonResponse = null;
+            if (response.getStatus() == 200 || response.getStatus() == 204) {
+                jsonResponse = new JSONArray(response.readEntity(String.class));
+            }
+
+            if (jsonResponse != null) {
+                return jsonResponse.getJSONObject(0).getString("id");
+            }
+
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to obtain user info: " + e.getMessage());
+        }
     }
 
 
