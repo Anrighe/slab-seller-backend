@@ -6,7 +6,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.camel.util.Pair;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
@@ -43,13 +42,28 @@ public class UserResource {
                     responseCode = "404",
                     description = "Not found"),
             @APIResponse(
+                    responseCode = "409",
+                    description = "User with same email or username already exists"),
+            @APIResponse(
                     responseCode = "500",
                     description = "Internal Server Error"),
             @APIResponse(
                     responseCode = "201",
-                    description = "User created successfully")
+                    description = "User created successfully"),
+
     })
+    @Operation(summary = "Sends a request for a user creation to the keycloak service")
     public Response createUser(UserCreationRequestDTO request) {
+
+        if (request.getUsername() == null || request.getUsername().isEmpty() ||
+                request.getPassword() == null || request.getPassword().isEmpty() ||
+                request.getEmail() == null || request.getEmail().isEmpty() ||
+                request.getFirstName() == null || request.getFirstName().isEmpty() ||
+                request.getLastName() == null || request.getLastName().isEmpty()) {
+
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+
         try {
             return keycloakService.createUser(request);
 

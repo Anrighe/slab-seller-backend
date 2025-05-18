@@ -458,6 +458,9 @@ public class KeycloakService {
      * @throws RuntimeException if an error occurs during the request
      */
     public String getUserIdFromEmail(final String userEmail) throws RuntimeException {
+
+        // TODO: use getUserInfo instead of creating a client
+
         Client client = ClientBuilder.newClient();
 
         try {
